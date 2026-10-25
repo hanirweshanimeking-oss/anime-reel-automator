@@ -54,10 +54,12 @@ FALLBACK_TEMPLATES = {
 }
 
 
+DEFAULT_GEMINI_KEY = "AQ.Ab8RN6J34lm1ATksX4a9ZWTxGj5VHalpV_EVbWba63LxxiQwBw"
+
 def call_gemini_rest(prompt, api_key):
     """Calls Gemini REST API directly using standard Python urllib (zero dependencies)."""
-    # Prefer gemini-2.5-flash or gemini-1.5-flash
-    models = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    # Active current Google Gemini models
+    models = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]
     for model_name in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         payload = {
@@ -78,19 +80,27 @@ def call_gemini_rest(prompt, api_key):
                 headers={"Content-Type": "application/json"},
                 method="POST"
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=20) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 candidates = data.get("candidates", [])
                 if candidates:
                     parts = candidates[0].get("content", {}).get("parts", [])
-                    if parts and "text" in parts[0]:
-                        return parts[0]["text"].strip()
+                    # Filter out internal thoughts and extract final text
+                    content_parts = [
+                        p["text"] for p in parts
+                        if "text" in p and not p.get("thought", False) and not p.get("thoughtSignature")
+                    ]
+                    if not content_parts:
+                        # Fallback to last text part if all had thought metadata
+                        content_parts = [p["text"] for p in parts if "text" in p]
+                    if content_parts:
+                        return "\n".join(content_parts).strip()
         except urllib.error.HTTPError as e:
             err = e.read().decode("utf-8")
-            print(f"[*] Gemini {model_name} HTTP {e.code}: {err}", file=sys.stderr)
+            print(f"[*] Gemini {model_name} HTTP {e.code}: {err[:120]}", file=sys.stderr)
             continue
         except Exception as e:
-            print(f"[*] Gemini attempt failed: {e}", file=sys.stderr)
+            print(f"[*] Gemini {model_name} attempt failed: {e}", file=sys.stderr)
             continue
     return None
 
@@ -98,7 +108,7 @@ def call_gemini_rest(prompt, api_key):
 def generate_caption(theme_name="JJK Clash", characters=None):
     """Generates an optimized Instagram Reel caption via Gemini or fallback template."""
     chars_str = ", ".join(characters) if characters else "Anime Legends"
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip() or DEFAULT_GEMINI_KEY
 
     if api_key:
         prompt = f"""
