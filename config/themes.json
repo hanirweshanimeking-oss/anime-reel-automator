@@ -29,6 +29,60 @@
         {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2647).mp4", "start": 0.5, "duration": 3.5},
         {"dir": "Digiproducthub.in (2001-2500)", "file": "Digiproducthub.in (2021).mp4", "start": 21.0, "duration": 3.6}
       ]
+    },
+    {
+      "id": "demon_slayer_flame",
+      "name": "Set Your Heart Ablaze",
+      "hook_title": "SET YOUR HEART ABLAZE",
+      "hook_subtitle": "THE UNBREAKABLE FLAME",
+      "characters": ["Rengoku Kyoujurou", "Kamado Tanjirou"],
+      "relative_segments": [
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2614).mp4", "start": 0.5, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2534).mp4", "start": 0.5, "duration": 3.2},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2649).mp4", "start": 1.0, "duration": 3.8},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2614).mp4", "start": 5.0, "duration": 3.4},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2649).mp4", "start": 6.0, "duration": 3.8}
+      ]
+    },
+    {
+      "id": "naruto_sasuke_rivals",
+      "name": "Rivals of Destiny",
+      "hook_title": "CHIDORI VS RASENGAN",
+      "hook_subtitle": "WHO IS STRONGER?",
+      "characters": ["Sasuke Uchiha", "Naruto Uzumaki"],
+      "relative_segments": [
+        {"dir": "Digiproducthub.in (2001-2500)", "file": "Digiproducthub.in (2002).mp4", "start": 1.0, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2690).mp4", "start": 0.5, "duration": 3.2},
+        {"dir": "Digiproducthub.in (2001-2500)", "file": "Digiproducthub.in (2002).mp4", "start": 10.0, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2690).mp4", "start": 4.5, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2001-2500)", "file": "Digiproducthub.in (2002).mp4", "start": 20.0, "duration": 3.8}
+      ]
+    },
+    {
+      "id": "one_piece_luffy_haki",
+      "name": "Conqueror of the Seas",
+      "hook_title": "KING OF THE PIRATES",
+      "hook_subtitle": "PURE CONQUERORS HAKI",
+      "characters": ["Monkey D. Luffy"],
+      "relative_segments": [
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2507).mp4", "start": 0.5, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2648).mp4", "start": 0.5, "duration": 3.2},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2507).mp4", "start": 4.0, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2648).mp4", "start": 4.5, "duration": 3.8}
+      ]
+    },
+    {
+      "id": "aot_clash",
+      "name": "Fight for Freedom",
+      "hook_title": "BATTLE FOR SURVIVAL",
+      "hook_subtitle": "GIVE YOUR HEARTS",
+      "characters": ["Mikasa Ackerman", "Eren Yeager"],
+      "relative_segments": [
+        {"dir": "Digiproducthub.in (2001-2500)", "file": "Digiproducthub.in (2008).mp4", "start": 1.0, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2501-3000)", "file": "Digiproducthub.in (2518).mp4", "start": 0.5, "duration": 3.0},
+        {"dir": "Digiproducthub.in (2001-2500)", "file": "Digiproducthub.in (2008).mp4", "start": 8.0, "duration": 3.5},
+        {"dir": "Digiproducthub.in (2001-2500)", "file": "Digiproducthub.in (2008).mp4", "start": 15.0, "duration": 4.0}
+      ]
     }
   ]
 }

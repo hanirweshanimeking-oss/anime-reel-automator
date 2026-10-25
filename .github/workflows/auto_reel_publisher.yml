@@ -17,6 +17,10 @@ on:
           - random
           - jjk_honored_one
           - jjk_malevolent_shrine
+          - demon_slayer_flame
+          - naruto_sasuke_rivals
+          - one_piece_luffy_haki
+          - aot_clash
       dry_run:
         description: 'Dry Run (Test render without publishing to Instagram)'
         required: true
