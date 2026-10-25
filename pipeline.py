@@ -126,7 +126,8 @@ def main():
         print("[*] Uploading & Publishing Reel to Instagram via Uplika API...")
         publish_result = publish_reel(out_file, caption)
         if publish_result:
-            permalink = poll_publish_status(timeout_seconds=90, interval=5)
+            post_id = publish_result.get("id")
+            permalink = poll_publish_status(post_id=post_id, timeout_seconds=120, interval=5)
             if permalink:
                 print("\n" + "=" * 60)
                 print(f"🎉 REEL IS LIVE ON INSTAGRAM: {permalink}")

@@ -31,7 +31,7 @@ def uplika_request(path, method="GET", payload=None):
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     req = urllib.request.Request(url, data=data, headers=HEADERS, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             raw = resp.read().decode("utf-8")
             return json.loads(raw)
     except urllib.error.HTTPError as e:
@@ -113,27 +113,39 @@ def publish_reel(file_path, caption, account_id=None):
                 "shareToFeed": True
             }
         },
-        "wait": True
+        "wait": False
     }
 
     pub_res = uplika_request("/v1/posts", method="POST", payload=post_payload)
     return pub_res
 
 
-def poll_publish_status(timeout_seconds=90, interval=5):
-    """Polls latest post until Instagram completes publishing."""
-    print("[*] Polling Instagram post status...")
+def poll_publish_status(post_id=None, timeout_seconds=120, interval=5):
+    """Polls post until Instagram completes publishing."""
+    print(f"[*] Polling Instagram post status (Target: {post_id or 'latest'})...")
     start_time = time.time()
     while time.time() - start_time < timeout_seconds:
         time.sleep(interval)
-        res = uplika_request("/v1/posts")
-        if res and "data" in res and len(res["data"]) > 0:
-            latest = res["data"][0]
-            status = latest.get("status")
-            permalink = latest.get("permalink")
-            print(f"[*] Status: {status} | Link: {permalink or 'Processing...'}")
-            if status == "published" and permalink:
-                return permalink
+        if post_id:
+            res = uplika_request(f"/v1/posts/{post_id}")
+            if res:
+                status = res.get("status")
+                permalink = res.get("permalink")
+                print(f"[*] Status: {status} | Link: {permalink or 'Processing on Instagram...'}")
+                if status == "published" and permalink:
+                    return permalink
+                if status in ("failed", "rejected"):
+                    print(f"[!] Post status failed: {res.get('error')}", file=sys.stderr)
+                    return None
+        else:
+            res = uplika_request("/v1/posts")
+            if res and "data" in res and len(res["data"]) > 0:
+                latest = res["data"][0]
+                status = latest.get("status")
+                permalink = latest.get("permalink")
+                print(f"[*] Status: {status} | Link: {permalink or 'Processing on Instagram...'}")
+                if status == "published" and permalink:
+                    return permalink
     return None
 
 
