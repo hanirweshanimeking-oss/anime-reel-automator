@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(SCRIPT_DIR, "scripts"))
 from video_engine import render_smooth_reel
 from gemini_copywriter import generate_caption
 from uplika_uploader import publish_reel, poll_publish_status
+from gdrive_downloader import download_file as gdrive_download
 
 DEFAULT_VIDEO_DIR = "/home/001268796482_0/Videos/3000+ Anime reel bundle"
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "outputs")
@@ -88,9 +89,14 @@ def main():
 
     segments_to_render = []
     for seg in chosen_theme.get("relative_segments", []):
-        vpath = resolve_video_path(candidate_dirs, seg.get("dir", ""), seg.get("file", ""))
+        filename = seg.get("file", "")
+        vpath = resolve_video_path(candidate_dirs, seg.get("dir", ""), filename)
         if not vpath:
-            print(f"[!] Source video not found for {seg.get('file')}; searched in {candidate_dirs}", file=sys.stderr)
+            print(f"[*] Clip '{filename}' not found locally; streaming from Google Drive...")
+            vpath = gdrive_download(filename, destination_dir="/tmp/clips", rel_dir=seg.get("dir", ""))
+
+        if not vpath or not os.path.exists(vpath):
+            print(f"[!] Source video not found for {filename}; searched in {candidate_dirs} and Google Drive", file=sys.stderr)
             sys.exit(1)
         segments_to_render.append((vpath, seg.get("start", 0.0), seg.get("duration", 3.0)))
 

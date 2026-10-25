@@ -62,6 +62,9 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           UPLIKA_API_KEY: ${{ secrets.UPLIKA_API_KEY }}
           UPLIKA_ACCOUNT_ID: ${{ secrets.UPLIKA_ACCOUNT_ID }}
+          GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+          GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
         run: |
           EXTRA_FLAGS=""
           if [ "${{ inputs.dry_run }}" = "true" ]; then
