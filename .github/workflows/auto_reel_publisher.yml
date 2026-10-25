@@ -1,0 +1,78 @@
+name: Autonomous Anime Reel Publisher
+
+on:
+  schedule:
+    # 06:30 UTC = 12:00 PM IST (Peak lunch hour)
+    - cron: '30 6 * * *'
+    # 12:30 UTC = 6:00 PM IST (Peak evening engagement)
+    - cron: '30 12 * * *'
+  workflow_dispatch:
+    inputs:
+      theme:
+        description: 'Anime Reel Theme'
+        required: true
+        default: 'random'
+        type: choice
+        options:
+          - random
+          - jjk_honored_one
+          - jjk_malevolent_shrine
+      dry_run:
+        description: 'Dry Run (Test render without publishing to Instagram)'
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: reel-publishing
+  cancel-in-progress: false
+
+jobs:
+  render-and-publish:
+    name: Generate Reel & Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 🎥 Install FFmpeg & Fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk fonts-noto-extra
+
+      - name: 📦 Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🚀 Run Autonomous Reel Pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          UPLIKA_API_KEY: ${{ secrets.UPLIKA_API_KEY }}
+          UPLIKA_ACCOUNT_ID: ${{ secrets.UPLIKA_ACCOUNT_ID }}
+        run: |
+          EXTRA_FLAGS=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            EXTRA_FLAGS="--dry-run"
+          fi
+          THEME_OPT="${{ inputs.theme }}"
+          if [ -z "$THEME_OPT" ]; then
+            THEME_OPT="random"
+          fi
+          python3 pipeline.py --theme "$THEME_OPT" $EXTRA_FLAGS
+
+      - name: 💾 Archive Generated Reel Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-instagram-reel
+          path: outputs/*.mp4
+          retention-days: 7

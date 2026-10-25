@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Outputs & Temporary build files
+outputs/*.mp4
+/tmp/reel_build/
+publish_history.json
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
