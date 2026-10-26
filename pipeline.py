@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Autonomous Cloud Reel Pipeline Orchestrator.
-Coordinates Video Editing (FFmpeg) -> AI Copywriting (Gemini) -> Social Media Publishing (Uplika).
-Can run locally or in GitHub Actions / Cloud Cron.
+Coordinates video editing (FFmpeg), AI copywriting (Gemini), and Uplika publishing.
 """
 
 import os
@@ -12,7 +11,6 @@ import random
 import argparse
 from datetime import datetime
 
-# Local imports
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(SCRIPT_DIR, "scripts"))
 
@@ -30,8 +28,8 @@ def load_themes():
     themes_path = os.path.join(SCRIPT_DIR, "config", "themes.json")
     if not os.path.exists(themes_path):
         raise FileNotFoundError(f"Themes config missing: {themes_path}")
-    with open(themes_path, "r", encoding="utf-8") as f:
-        return json.load(f).get("themes", [])
+    with open(themes_path, "r", encoding="utf-8") as file:
+        return json.load(file).get("themes", [])
 
 
 def resolve_video_path(candidate_base_dirs, rel_dir, filename):
@@ -41,7 +39,7 @@ def resolve_video_path(candidate_base_dirs, rel_dir, filename):
         cleaned_dir,
         os.path.join("clips", rel_dir),
         os.path.join("clips", cleaned_dir),
-        ""
+        "",
     ]
     for base in candidate_base_dirs:
         for sub in subpaths:
@@ -54,7 +52,7 @@ def resolve_video_path(candidate_base_dirs, rel_dir, filename):
 def main():
     parser = argparse.ArgumentParser(description="Autonomous Anime Reel Cloud Pipeline")
     parser.add_argument("--theme", type=str, default="random", help="Theme ID to render or 'random'")
-    parser.add_argument("--dry-run", action="store_true", help="Render video & caption without uploading to Instagram")
+    parser.add_argument("--dry-run", action="store_true", help="Render video and caption without uploading")
     parser.add_argument("--video-dir", type=str, default="", help="Custom root directory for video bundle")
     parser.add_argument("--output", type=str, default="", help="Custom output MP4 path")
     args = parser.parse_args()
@@ -65,111 +63,134 @@ def main():
         print("[!] No themes defined in themes.json", file=sys.stderr)
         sys.exit(1)
 
-    # 1. Select Theme
     if args.theme == "random":
         chosen_theme = random.choice(themes)
     else:
-        matched = [t for t in themes if t.get("id") == args.theme]
-        chosen_theme = matched[0] if matched else random.choice(themes)
+        matched = [theme for theme in themes if theme.get("id") == args.theme]
+        if not matched:
+            print(f"[!] Unknown theme '{args.theme}'. Choose 'random' or a theme ID from config/themes.json.", file=sys.stderr)
+            sys.exit(2)
+        chosen_theme = matched[0]
 
     print("=" * 60)
-    print(f"🎬 SELECTED THEME: {chosen_theme['name']} ({chosen_theme['id']})")
-    print(f"⚡ CHARACTERS: {', '.join(chosen_theme.get('characters', []))}")
+    print(f"SELECTED THEME: {chosen_theme['name']} ({chosen_theme['id']})")
+    print(f"CHARACTERS: {', '.join(chosen_theme.get('characters', []))}")
     print("=" * 60)
 
-    # 2. Locate Source Videos
     candidate_dirs = [
         args.video_dir,
         os.environ.get("VIDEO_BUNDLE_ROOT", ""),
         DEFAULT_VIDEO_DIR,
         os.path.join(SCRIPT_DIR, "clips"),
-        "/tmp/clips"
+        "/tmp/clips",
     ]
-    candidate_dirs = [d for d in candidate_dirs if d and os.path.exists(d)]
+    candidate_dirs = [directory for directory in candidate_dirs if directory and os.path.exists(directory)]
 
     segments_to_render = []
-    for seg in chosen_theme.get("relative_segments", []):
-        filename = seg.get("file", "")
-        vpath = resolve_video_path(candidate_dirs, seg.get("dir", ""), filename)
-        if not vpath:
-            print(f"[*] Clip '{filename}' not found locally; streaming from Google Drive...")
-            vpath = gdrive_download(filename, destination_dir="/tmp/clips", rel_dir=seg.get("dir", ""))
+    for segment in chosen_theme.get("relative_segments", []):
+        filename = segment.get("file", "")
+        video_path = resolve_video_path(candidate_dirs, segment.get("dir", ""), filename)
+        if not video_path:
+            print(f"[*] Clip '{filename}' not found locally; downloading from Google Drive...")
+            video_path = gdrive_download(
+                filename,
+                destination_dir="/tmp/clips",
+                rel_dir=segment.get("dir", ""),
+            )
 
-        if not vpath or not os.path.exists(vpath):
-            print(f"[!] Source video not found for {filename}; searched in {candidate_dirs} and Google Drive", file=sys.stderr)
+        if not video_path or not os.path.exists(video_path):
+            print(f"[!] Source video not found for {filename}; searched local paths and Google Drive.", file=sys.stderr)
             sys.exit(1)
-        segments_to_render.append((vpath, seg.get("start", 0.0), seg.get("duration", 3.0)))
+        segments_to_render.append((
+            video_path,
+            segment.get("start", 0.0),
+            segment.get("duration", 3.0),
+        ))
 
-    # 3. Render High-Retention Reel
-    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_file = args.output or os.path.join(OUTPUT_DIR, f"reel_{chosen_theme['id']}_{timestamp_str}.mp4")
+    if not segments_to_render:
+        print("[!] Selected theme contains no video segments.", file=sys.stderr)
+        sys.exit(1)
 
-    print(f"[*] Rendering vertical reel to: {out_file}")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = args.output or os.path.join(OUTPUT_DIR, f"reel_{chosen_theme['id']}_{timestamp}.mp4")
+
+    print(f"[*] Rendering vertical Reel to: {output_file}")
     render_smooth_reel(
         segments=segments_to_render,
-        output_path=out_file,
+        output_path=output_file,
         hook_title=chosen_theme.get("hook_title", "HONORED ONE vs KING OF CURSES"),
         hook_subtitle=chosen_theme.get("hook_subtitle", "WHO HAS MORE AURA?"),
-        watermark="@dragon.studios.india"
+        watermark="@dragon.studios.india",
     )
 
-    # 4. Generate AI Caption & Tags
-    print("\n[*] Generating high-engagement viral caption...")
+    if not os.path.isfile(output_file) or os.path.getsize(output_file) <= 0:
+        print("[!] Render did not produce a valid MP4 file.", file=sys.stderr)
+        sys.exit(1)
+
+    print("\n[*] Generating caption...")
     caption = generate_caption(
         theme_name=chosen_theme.get("name"),
-        characters=chosen_theme.get("characters")
+        characters=chosen_theme.get("characters"),
     )
     print("\n" + "-" * 50)
     print(caption)
     print("-" * 50 + "\n")
 
-    # 5. Instagram Publishing via Uplika
     publish_result = None
     permalink = None
     if args.dry_run:
-        print("[!] DRY-RUN ENABLED: Skipping Instagram upload.")
+        print("[!] DRY-RUN ENABLED: skipping Instagram upload.")
     else:
-        print("[*] Uploading & Publishing Reel to Instagram via Uplika API...")
-        publish_result = publish_reel(out_file, caption)
-        if publish_result:
-            post_id = publish_result.get("id")
-            permalink = publish_result.get("permalink") or publish_result.get("url") or publish_result.get("link")
-            if permalink:
-                print("\n" + "=" * 60)
-                print(f"🎉 REEL IS LIVE ON INSTAGRAM: {permalink}")
-                print("=" * 60 + "\n")
-            else:
-                permalink = poll_publish_status(post_id=post_id, timeout_seconds=120, interval=5)
-                if permalink:
-                    print("\n" + "=" * 60)
-                    print(f"🎉 REEL IS LIVE ON INSTAGRAM: {permalink}")
-                    print("=" * 60 + "\n")
-                else:
-                    print("[!] Instagram post was created, but no public permalink was returned. Check the Uplika post status manually.")
+        print("[*] Uploading and publishing Reel via Uplika...")
+        publish_result = publish_reel(output_file, caption)
+        if not publish_result:
+            print("[!] Publish request failed. Marking this workflow run as failed.", file=sys.stderr)
+            sys.exit(1)
 
-    # 6. Record to History
+        post_id = publish_result.get("id") if isinstance(publish_result, dict) else None
+        permalink = (
+            publish_result.get("permalink")
+            or publish_result.get("url")
+            or publish_result.get("link")
+        ) if isinstance(publish_result, dict) else None
+
+        if not permalink:
+            permalink = poll_publish_status(post_id=post_id, timeout_seconds=120, interval=5)
+
+        if permalink:
+            print("\n" + "=" * 60)
+            print(f"REEL LIVE URL: {permalink}")
+            print("=" * 60 + "\n")
+        else:
+            print(
+                "[!] Uplika did not provide a confirmed public permalink. "
+                "Check Uplika and Instagram before manually retrying to avoid duplicate posts.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     history_entry = {
         "timestamp": datetime.now().isoformat(),
         "theme_id": chosen_theme["id"],
-        "video_file": out_file,
+        "video_file": output_file,
         "caption": caption,
         "dry_run": args.dry_run,
         "permalink": permalink,
-        "publish_response": publish_result
+        "publish_response": publish_result,
     }
 
     history = []
     if os.path.exists(HISTORY_FILE):
         try:
-            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                history = json.load(f)
-        except Exception:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as file:
+                history = json.load(file)
+        except (OSError, json.JSONDecodeError):
             history = []
     history.append(history_entry)
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2)
+    with open(HISTORY_FILE, "w", encoding="utf-8") as file:
+        json.dump(history, file, indent=2)
 
-    print(f"[✓] Automation cycle completed successfully! History logged to {HISTORY_FILE}")
+    print(f"[✓] Automation cycle completed. History logged to {HISTORY_FILE}")
 
 
 if __name__ == "__main__":
