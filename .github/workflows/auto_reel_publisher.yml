@@ -2,9 +2,9 @@ name: Autonomous Anime Reel Publisher
 
 on:
   schedule:
-    # 06:30 UTC = 12:00 PM IST (Peak lunch hour)
+    # 06:30 UTC = 12:00 PM IST
     - cron: '30 6 * * *'
-    # 12:30 UTC = 6:00 PM IST (Peak evening engagement)
+    # 12:30 UTC = 6:00 PM IST
     - cron: '30 12 * * *'
   workflow_dispatch:
     inputs:
@@ -35,29 +35,36 @@ jobs:
   render-and-publish:
     name: Generate Reel & Publish
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - name: 📥 Checkout Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.11
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: 🎥 Install FFmpeg & Fonts
+      - name: Ensure FFmpeg is available
+        shell: bash
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk fonts-noto-extra
+          if command -v ffmpeg >/dev/null 2>&1; then
+            ffmpeg -version | head -n 1
+          else
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          command -v ffmpeg
+          command -v ffprobe || true
 
-      - name: 📦 Install Python Dependencies
+      - name: Install Python Dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
 
-      - name: 🚀 Run Autonomous Reel Pipeline
+      - name: Run Autonomous Reel Pipeline
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           UPLIKA_API_KEY: ${{ secrets.UPLIKA_API_KEY }}
@@ -65,6 +72,7 @@ jobs:
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
           GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+        shell: bash
         run: |
           EXTRA_FLAGS=""
           if [ "${{ inputs.dry_run }}" = "true" ]; then
@@ -76,10 +84,11 @@ jobs:
           fi
           python3 pipeline.py --theme "$THEME_OPT" $EXTRA_FLAGS
 
-      - name: 💾 Archive Generated Reel Artifact
+      - name: Archive Generated Reel Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: generated-instagram-reel
           path: outputs/*.mp4
+          if-no-files-found: warn
           retention-days: 7
