@@ -25,6 +25,35 @@ HEADERS = {
 }
 
 
+def extract_permalink(data):
+    """Extract a public URL from a nested Uplika response payload."""
+    if isinstance(data, str):
+        return data if data.startswith("http") else None
+
+    if not isinstance(data, dict):
+        return None
+
+    for key in ("permalink", "permalink_url", "url", "link", "webUrl", "shareUrl", "postUrl", "instagramUrl"):
+        value = data.get(key)
+        if isinstance(value, str) and value.startswith("http"):
+            return value
+
+    for key in ("data", "result", "post", "response", "media"):
+        nested = data.get(key)
+        if nested is not None:
+            if isinstance(nested, list):
+                for item in nested:
+                    permalink = extract_permalink(item)
+                    if permalink:
+                        return permalink
+            elif isinstance(nested, dict):
+                permalink = extract_permalink(nested)
+                if permalink:
+                    return permalink
+
+    return None
+
+
 def uplika_request(path, method="GET", payload=None):
     """Makes an authenticated JSON request to the Uplika REST API."""
     url = f"https://api.uplika.com{path}"
@@ -117,6 +146,10 @@ def publish_reel(file_path, caption, account_id=None):
     }
 
     pub_res = uplika_request("/v1/posts", method="POST", payload=post_payload)
+    if isinstance(pub_res, dict):
+        direct_link = extract_permalink(pub_res)
+        if direct_link:
+            print(f"[*] Instagram reel URL returned immediately: {direct_link}")
     return pub_res
 
 
@@ -129,23 +162,29 @@ def poll_publish_status(post_id=None, timeout_seconds=120, interval=5):
         if post_id:
             res = uplika_request(f"/v1/posts/{post_id}")
             if res:
-                status = res.get("status")
-                permalink = res.get("permalink")
+                status = res.get("status") or res.get("state") or res.get("publishStatus") or "unknown"
+                permalink = extract_permalink(res)
                 print(f"[*] Status: {status} | Link: {permalink or 'Processing on Instagram...'}")
-                if status == "published" and permalink:
+                if permalink:
                     return permalink
-                if status in ("failed", "rejected"):
-                    print(f"[!] Post status failed: {res.get('error')}", file=sys.stderr)
+                if str(status).lower() in ("failed", "rejected", "error", "cancelled"):
+                    print(f"[!] Post status failed: {res.get('error') or res.get('message') or res}", file=sys.stderr)
+                    return None
+                if str(status).lower() in ("published", "posted", "live", "completed"):
+                    print(f"[!] Post marked as published, but no public permalink was returned by the API: {res}", file=sys.stderr)
                     return None
         else:
             res = uplika_request("/v1/posts")
             if res and "data" in res and len(res["data"]) > 0:
                 latest = res["data"][0]
-                status = latest.get("status")
-                permalink = latest.get("permalink")
+                status = latest.get("status") or latest.get("state") or latest.get("publishStatus") or "unknown"
+                permalink = extract_permalink(latest)
                 print(f"[*] Status: {status} | Link: {permalink or 'Processing on Instagram...'}")
-                if status == "published" and permalink:
+                if permalink:
                     return permalink
+                if str(status).lower() in ("failed", "rejected", "error", "cancelled"):
+                    print(f"[!] Post status failed: {latest.get('error') or latest.get('message') or latest}", file=sys.stderr)
+                    return None
     return None
 
 

@@ -133,11 +133,19 @@ def main():
         publish_result = publish_reel(out_file, caption)
         if publish_result:
             post_id = publish_result.get("id")
-            permalink = poll_publish_status(post_id=post_id, timeout_seconds=120, interval=5)
+            permalink = publish_result.get("permalink") or publish_result.get("url") or publish_result.get("link")
             if permalink:
                 print("\n" + "=" * 60)
                 print(f"🎉 REEL IS LIVE ON INSTAGRAM: {permalink}")
                 print("=" * 60 + "\n")
+            else:
+                permalink = poll_publish_status(post_id=post_id, timeout_seconds=120, interval=5)
+                if permalink:
+                    print("\n" + "=" * 60)
+                    print(f"🎉 REEL IS LIVE ON INSTAGRAM: {permalink}")
+                    print("=" * 60 + "\n")
+                else:
+                    print("[!] Instagram post was created, but no public permalink was returned. Check the Uplika post status manually.")
 
     # 6. Record to History
     history_entry = {
