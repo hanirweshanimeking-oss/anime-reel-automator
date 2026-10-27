@@ -67,12 +67,12 @@ def main():
     else:
         publish_result=publish_reel(out,caption)
         if publish_result:
-            post_id=publish_result.get('id') or publish_result.get('postId')
+            post_id=publish_result.get('_post_id') or publish_result.get('id') or publish_result.get('postId')
             permalink=poll_publish_status(post_id=post_id,timeout_seconds=180,interval=5)
             status='published_verified' if permalink else 'unverified_or_pending'
         else: status='publish_failed'
         if permalink: print(f'INSTAGRAM_PERMALINK_VERIFIED: {permalink}')
-        else: print('Publication is NOT verified: no public Instagram permalink was confirmed. Check provider dashboard before retrying.')
+        else: print('Publication is NOT verified: no public Instagram permalink was confirmed. Check provider dashboard before retrying to avoid duplicate posts.')
     entry={'timestamp':datetime.now(timezone.utc).isoformat(),'mode':args.mode,'theme_id':base_theme['id'],'topic_id':topic['id'] if topic else None,'video_file':out,'caption':caption,'dry_run':args.dry_run,'publish_status':status,'permalink':permalink}
     save_history(entry)
     print(f'History recorded ({status}).')
