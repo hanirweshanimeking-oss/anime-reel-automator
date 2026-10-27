@@ -83,21 +83,23 @@ def render_smooth_reel(segments, output_path, hook_title="HONORED ONE vs KING OF
             "MEASURE THE PAUSES — Give yourself time to think before reacting.",
             "STAY CURIOUS — Ask questions instead of assuming motives."
         ])
-        # Match the reference structure: monochrome anime footage, white condensed headings,
-        # small gold italic quote text, numbered points, and a final follow card.
+        # Match the reference structure: monochrome anime footage, white headings,
+        # gold italic supporting text, numbered points, and a final follow card.
+        point_titles = [str(p).split(" — ", 1)[0] for p in points]
+        point_bodies = [str(p).split(" — ", 1)[1] if " — " in str(p) else str(p) for p in points]
         heading_font = font_path
         quote_font = serif_path
-        intro_quote = _escape_drawtext(psychology_topic.get("lesson", "Observe carefully. Question assumptions. Choose your response."))
+        intro_quote = _escape_drawtext(psychology_topic.get("question", "Observe carefully. Question assumptions. Choose your response."))
         filter_parts.append(
             f"[vraw]vignette=angle=PI/5,format=yuv420p,"
             f"drawtext=text='{clean_hook}':fontfile='{heading_font}':fontsize=43:fontcolor=white:bordercolor=black@0.85:borderw=2:x=(w-text_w)/2:y=h*0.36:enable='between(t,0,3.2)',"
-            f"drawtext=text='{intro_quote}':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.405:text_w=min(w*0.86,text_w):enable='between(t,0,3.2)',"
-            f"drawtext=text='1. {_escape_drawtext(points[0] if len(points)>0 else 'WATCH THE PATTERN')}':fontfile='{heading_font}':fontsize=35:fontcolor=white:bordercolor=black@0.85:borderw=2:x=(w-text_w)/2:y=h*0.34:enable='between(t,3.2,7.0)',"
-            f"drawtext=text='2. {_escape_drawtext(points[1] if len(points)>1 else 'MEASURE THE PAUSES')}':fontfile='{heading_font}':fontsize=35:fontcolor=white:bordercolor=black@0.85:borderw=2:x=(w-text_w)/2:y=h*0.34:enable='between(t,7.0,10.8)',"
-            f"drawtext=text='3. {_escape_drawtext(points[2] if len(points)>2 else 'STAY CURIOUS')}':fontfile='{heading_font}':fontsize=35:fontcolor=white:bordercolor=black@0.85:borderw=2:x=(w-text_w)/2:y=h*0.34:enable='between(t,10.8,14.8)',"
-            f"drawtext=text='{_escape_drawtext(points[0] if len(points)>0 else 'Notice the pattern')}':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.39:enable='between(t,3.2,7.0)',"
-            f"drawtext=text='{_escape_drawtext(points[1] if len(points)>1 else 'Give yourself time')}':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.39:enable='between(t,7.0,10.8)',"
-            f"drawtext=text='{_escape_drawtext(points[2] if len(points)>2 else 'Ask, do not assume')}':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.39:enable='between(t,10.8,14.8)',"
+            f"drawtext=text='{intro_quote}':fontfile='{quote_font}':fontsize=24:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.405:enable='between(t,0,3.2)',"
+            f"drawtext=text='1. {_escape_drawtext(point_titles[0] if len(point_titles)>0 else 'WATCH THE PATTERN')}':fontfile='{heading_font}':fontsize=35:fontcolor=white:bordercolor=black@0.85:borderw=2:x=(w-text_w)/2:y=h*0.34:enable='between(t,3.2,7.0)',"
+            f"drawtext=text='2. {_escape_drawtext(point_titles[1] if len(point_titles)>1 else 'MEASURE THE PAUSES')}':fontfile='{heading_font}':fontsize=35:fontcolor=white:bordercolor=black@0.85:borderw=2:x=(w-text_w)/2:y=h*0.34:enable='between(t,7.0,10.8)',"
+            f"drawtext=text='3. {_escape_drawtext(point_titles[2] if len(point_titles)>2 else 'STAY CURIOUS')}':fontfile='{heading_font}':fontsize=35:fontcolor=white:bordercolor=black@0.85:borderw=2:x=(w-text_w)/2:y=h*0.34:enable='between(t,10.8,14.8)',"
+            f"drawtext=text='{_escape_drawtext(point_bodies[0] if len(point_bodies)>0 else 'Notice the pattern')}':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.39:enable='between(t,3.2,7.0)',"
+            f"drawtext=text='{_escape_drawtext(point_bodies[1] if len(point_bodies)>1 else 'Give yourself time')}':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.39:enable='between(t,7.0,10.8)',"
+            f"drawtext=text='{_escape_drawtext(point_bodies[2] if len(point_bodies)>2 else 'Ask, do not assume')}':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.39:enable='between(t,10.8,14.8)',"
             f"drawtext=text='FOLLOW FOR MORE':fontfile='{heading_font}':fontsize=47:fontcolor=white:bordercolor=black@0.85:borderw=3:x=(w-text_w)/2:y=h*0.42:enable='gte(t,14.8)',"
             f"drawtext=text='Daily psychology and anime mindset. Save this for later.':fontfile='{quote_font}':fontsize=27:fontcolor=0xD9B96E:bordercolor=black@0.8:borderw=1:x=(w-text_w)/2:y=h*0.47:enable='gte(t,14.8)',"
             f"drawtext=text='{clean_brand}':fontfile='{heading_font}':fontsize=28:fontcolor=white@0.82:bordercolor=black@0.7:borderw=1:x=(w-text_w)/2:y=h-150[vout]"
