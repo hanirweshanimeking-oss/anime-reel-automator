@@ -17,7 +17,13 @@ ASSETS_DIR = os.path.join(PROJECT_ROOT, "assets")
 FONT_FILE = os.path.join(ASSETS_DIR, "fonts", "font.ttf")
 AUDIO_FILE = os.path.join(ASSETS_DIR, "audio", "master_phonk_track.mp3")
 
-TRANSITIONS_POOL = ["fadewhite", "circlecrop", "smoothleft", "fade", "wipeleft", "slideup"]
+STYLE_PRESETS = {
+    "cinematic_gold": {"transitions": ["fade", "smoothleft", "wipeleft"], "contrast": 1.18, "saturation": 1.0, "hook_color": "white", "accent_color": "0xE5B94B", "end_card": "FOLLOW FOR MORE"},
+    "red_black": {"transitions": ["fadewhite", "wipeleft", "circlecrop"], "contrast": 1.28, "saturation": 0.78, "hook_color": "white", "accent_color": "0xFF3333", "end_card": "FOLLOW FOR MORE"},
+    "blue_monochrome": {"transitions": ["fade", "smoothleft", "slideup"], "contrast": 1.22, "saturation": 0.0, "hook_color": "white", "accent_color": "0x38BDF8", "end_card": "FOLLOW FOR MORE"},
+    "fast_montage": {"transitions": ["wipeleft", "slideup", "smoothleft"], "contrast": 1.2, "saturation": 0.9, "hook_color": "white", "accent_color": "0xE5B94B", "end_card": "FOLLOW FOR MORE"},
+}
+DEFAULT_STYLE = "cinematic_gold"
 
 
 def check_ffmpeg():
@@ -33,6 +39,7 @@ def render_smooth_reel(
     hook_subtitle="WHO HAS MORE AURA?",
     watermark="@dragon.studios.india",
     audio_track=None,
+    style_profile=DEFAULT_STYLE,
     temp_dir="/tmp/reel_build"
 ):
     """
@@ -43,6 +50,9 @@ def render_smooth_reel(
     output_path: path to final MP4 output
     """
     check_ffmpeg()
+    if style_profile not in STYLE_PRESETS:
+        raise ValueError(f"Unknown style profile: {style_profile}")
+    style = STYLE_PRESETS[style_profile]
     os.makedirs(temp_dir, exist_ok=True)
     out_dir = os.path.dirname(output_path)
     if out_dir:
@@ -63,7 +73,7 @@ def render_smooth_reel(
             "scale=1080:1920:force_original_aspect_ratio=increase,"
             "crop=1080:1920,"
             "unsharp=5:5:0.85:5:5:0.0,"
-            "eq=contrast=1.18:saturation=1.28:brightness=0.01"
+            f"eq=contrast={style['contrast']}:saturation={style['saturation']}:brightness=0.01"
         )
         cmd = [
             "ffmpeg", "-y",
@@ -94,7 +104,7 @@ def render_smooth_reel(
     for i in range(1, len(segments)):
         next_input = f"[{i}:v]"
         out_label = f"[v0{i}]" if i < len(segments) - 1 else "[vraw]"
-        trans_name = TRANSITIONS_POOL[(i - 1) % len(TRANSITIONS_POOL)]
+        trans_name = style["transitions"][(i - 1) % len(style["transitions"])]
         filter_parts.append(
             f"{prev_label}{next_input}xfade=transition={trans_name}:duration={trans_dur:.2f}:offset={running_offset:.2f}{out_label}"
         )
@@ -109,11 +119,15 @@ def render_smooth_reel(
     clean_sub = hook_subtitle.replace("'", "").replace(":", "-")
     clean_brand = watermark.replace("'", "")
 
+    hook_color = style["hook_color"]
+    accent_color = style["accent_color"]
+    end_card = style["end_card"]
     text_filters = (
         f"[vraw]vignette=angle=PI/50,"
-        f"drawtext=text='{clean_hook}':fontfile='{font_path}':fontsize=44:fontcolor=white:bordercolor=black:borderw=4:shadowcolor=black@0.9:shadowx=3:shadowy=3:x=(w-text_w)/2:y=280:enable='between(t,0,3.2)',"
-        f"drawtext=text='{clean_sub}':fontfile='{font_path}':fontsize=38:fontcolor=yellow:bordercolor=black:borderw=4:shadowcolor=black@0.9:shadowx=3:shadowy=3:x=(w-text_w)/2:y=340:enable='between(t,0,3.2)',"
-        f"drawtext=text='{clean_brand}':fontfile='{font_path}':fontsize=32:fontcolor=white@0.85:bordercolor=black@0.8:borderw=2:x=(w-text_w)/2:y=h-220[vout]"
+        f"drawtext=text='{clean_hook}':fontfile='{font_path}':fontsize=44:fontcolor={hook_color}:bordercolor=black:borderw=4:shadowcolor=black@0.9:shadowx=3:shadowy=3:x=(w-text_w)/2:y=280:enable='between(t,0,3.2)',"
+        f"drawtext=text='{clean_sub}':fontfile='{font_path}':fontsize=38:fontcolor={accent_color}:bordercolor=black:borderw=4:shadowcolor=black@0.9:shadowx=3:shadowy=3:x=(w-text_w)/2:y=340:enable='between(t,0,3.2)',"
+        f"drawtext=text='{clean_brand}':fontfile='{font_path}':fontsize=32:fontcolor=white@0.85:bordercolor=black@0.8:borderw=2:x=(w-text_w)/2:y=h-220,"
+        f"drawtext=text='{end_card}':fontfile='{font_path}':fontsize=48:fontcolor={accent_color}:bordercolor=black:borderw=4:x=(w-text_w)/2:y=(h-text_h)/2:enable='between(t,{max(0, total_duration-2.5):.2f},{total_duration:.2f})'[vout]"
     )
     filter_parts.append(text_filters)
     full_complex_filter = ";".join(filter_parts)

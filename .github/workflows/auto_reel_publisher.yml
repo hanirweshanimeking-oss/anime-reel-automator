@@ -19,12 +19,12 @@ on:
         default: 'random'
         type: choice
         options: [random, jjk_honored_one, jjk_malevolent_shrine, demon_slayer_flame, naruto_sasuke_rivals, one_piece_luffy_haki, aot_clash]
-      voice_profile:
-        description: 'Free offline narration style'
+      style:
+        description: 'Visual treatment preset'
         required: true
-        default: 'off'
+        default: 'cinematic_gold'
         type: choice
-        options: [off, auto, ayanokoji-inspired, johan-inspired, deep-narrator, bright-narrator]
+        options: [cinematic_gold, red_black, blue_monochrome, fast_montage]
       dry_run:
         description: 'Render without publishing'
         required: true
@@ -34,7 +34,7 @@ concurrency:
   group: reel-publishing
   cancel-in-progress: false
 permissions:
-  contents: read
+  contents: write
 jobs:
   test:
     name: Unit tests
@@ -77,10 +77,10 @@ jobs:
         run: |
           THEME='${{ inputs.theme || 'random' }}'
           MODE='${{ inputs.mode || 'anime' }}'
-          VOICE_PROFILE='${{ inputs.voice_profile || 'off' }}'
+          STYLE='${{ inputs.style || 'cinematic_gold' }}'
           FLAGS=''
           if [ '${{ inputs.dry_run }}' = 'true' ] || [ '${{ github.event_name }}' = 'schedule' ]; then FLAGS='--dry-run'; fi
-          python3 pipeline.py --mode "$MODE" --theme "$THEME" --voice-profile "$VOICE_PROFILE" $FLAGS
+          python3 pipeline.py --mode "$MODE" --theme "$THEME" --voice-profile off --style "$STYLE" $FLAGS
       - name: Upload rendered Reel artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,3 +99,18 @@ jobs:
             analytics/instagram_metrics.csv
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Persist source usage registry
+        if: always() && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source_usage.json
+          if git diff --cached --quiet; then
+            echo "No source registry changes to persist."
+          else
+            git commit -m "chore: persist used Reel source clips [skip ci]"
+            git push
+          fi
