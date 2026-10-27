@@ -8,8 +8,6 @@ import random
 import subprocess
 from pathlib import Path
 
-import requests
-
 PROFILES = {
     "ayanokoji-inspired": {
         "env": "VOICE_ID_AYANOKOJI_INSPIRED",
@@ -76,6 +74,8 @@ def generate_voiceover(text, output_path, profile_name):
     if not text:
         raise ValueError("Narration text cannot be empty")
 
+    # Import at call-time so local unit tests do not require network dependencies.
+    import requests
     response = requests.post(
         f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
         headers={"xi-api-key": api_key, "Accept": "audio/mpeg", "Content-Type": "application/json"},
