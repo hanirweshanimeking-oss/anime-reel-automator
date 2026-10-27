@@ -1,51 +1,58 @@
-"""Configurable ElevenLabs voiceover profiles for Dragon Studios Reels.
+"""Free offline voiceover profiles for Dragon Studios Reels using espeak-ng.
 
-Profiles are character-inspired styles, not exact impersonations or voice clones.
-Set ELEVENLABS_API_KEY and one or more VOICE_ID_* environment variables.
+No paid API, API key, account, or network request is required. Profiles are
+delivery styles inspired by fictional characters, not exact voice imitations.
 """
-import os
 import random
+import shutil
 import subprocess
 from pathlib import Path
 
 PROFILES = {
     "ayanokoji-inspired": {
-        "env": "VOICE_ID_AYANOKOJI_INSPIRED",
-        "description": "calm, restrained, analytical, low-emotion delivery",
-        "settings": {"stability": 0.78, "similarity_boost": 0.72, "style": 0.18, "use_speaker_boost": True},
+        "description": "calm, restrained, analytical delivery",
+        "voice": "en-us+m3",
+        "speed": 138,
+        "pitch": 28,
+        "amplitude": 165,
     },
     "johan-inspired": {
-        "env": "VOICE_ID_JOHAN_INSPIRED",
-        "description": "soft-spoken, composed, eerie, persuasive delivery",
-        "settings": {"stability": 0.62, "similarity_boost": 0.72, "style": 0.32, "use_speaker_boost": True},
+        "description": "soft-spoken, measured, unsettling delivery",
+        "voice": "en-us+f3",
+        "speed": 126,
+        "pitch": 43,
+        "amplitude": 145,
     },
     "deep-narrator": {
-        "env": "VOICE_ID_DEEP_NARRATOR",
-        "description": "deep, cinematic, authoritative narration",
-        "settings": {"stability": 0.68, "similarity_boost": 0.72, "style": 0.25, "use_speaker_boost": True},
+        "description": "lower-pitched, cinematic narration",
+        "voice": "en-us+m2",
+        "speed": 132,
+        "pitch": 20,
+        "amplitude": 175,
     },
     "bright-narrator": {
-        "env": "VOICE_ID_BRIGHT_NARRATOR",
-        "description": "energetic, clear, expressive narration",
-        "settings": {"stability": 0.48, "similarity_boost": 0.72, "style": 0.38, "use_speaker_boost": True},
+        "description": "brisk, energetic, expressive narration",
+        "voice": "en-us+m4",
+        "speed": 165,
+        "pitch": 48,
+        "amplitude": 175,
     },
 }
 
 
 def configured_profiles():
-    return [name for name, item in PROFILES.items() if os.environ.get(item["env"], "").strip()]
+    """Profiles are available when the offline espeak-ng binary is installed."""
+    return list(PROFILES) if shutil.which("espeak-ng") else []
 
 
 def choose_voice_profile(name="auto"):
     available = configured_profiles()
+    if not available:
+        raise RuntimeError("espeak-ng is not installed. Install it with: sudo apt-get install espeak-ng")
     if name == "auto":
-        if not available:
-            raise RuntimeError("No voice profiles configured. Set at least one VOICE_ID_* secret.")
         return random.choice(available)
     if name not in PROFILES:
         raise ValueError(f"Unknown voice profile: {name}")
-    if not os.environ.get(PROFILES[name]["env"], "").strip():
-        raise RuntimeError(f"Voice profile '{name}' needs its {PROFILES[name]['env']} environment variable.")
     return name
 
 
@@ -61,39 +68,31 @@ def build_narration(title, subtitle, mode="anime", characters=None):
 
 
 def generate_voiceover(text, output_path, profile_name):
-    api_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
-    if not api_key:
-        raise RuntimeError("ELEVENLABS_API_KEY is required for voiceover generation.")
     if profile_name not in PROFILES:
         raise ValueError(f"Unknown voice profile: {profile_name}")
-    profile = PROFILES[profile_name]
-    voice_id = os.environ.get(profile["env"], "").strip()
-    if not voice_id:
-        raise RuntimeError(f"Missing configured voice ID: {profile['env']}")
+    executable = shutil.which("espeak-ng")
+    if not executable:
+        raise RuntimeError("espeak-ng is not installed. Install it with: sudo apt-get install espeak-ng")
     text = " ".join(str(text or "").split()).strip()
     if not text:
         raise ValueError("Narration text cannot be empty")
 
-    # Import at call-time so local unit tests do not require network dependencies.
-    import requests
-    response = requests.post(
-        f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
-        headers={"xi-api-key": api_key, "Accept": "audio/mpeg", "Content-Type": "application/json"},
-        json={"text": text, "model_id": "eleven_multilingual_v2", "voice_settings": profile["settings"]},
-        timeout=90,
-    )
-    if not response.ok:
-        raise RuntimeError(f"ElevenLabs TTS failed ({response.status_code}): {response.text[:500]}")
+    profile = PROFILES[profile_name]
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(response.content)
-    if target.stat().st_size == 0:
-        raise RuntimeError("ElevenLabs returned an empty audio file")
+    cmd = [
+        executable, "-v", profile["voice"], "-s", str(profile["speed"]),
+        "-p", str(profile["pitch"]), "-a", str(profile["amplitude"]),
+        "-w", str(target), text,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    if result.returncode != 0 or not target.exists() or target.stat().st_size == 0:
+        raise RuntimeError("Offline espeak-ng voice generation failed: " + (result.stderr or "unknown error")[-1000:])
     return str(target)
 
 
 def mix_voiceover(video_path, voice_path, narration_volume=1.0, music_volume=0.22):
-    """Mix narration clearly over the Reel's existing soundtrack in-place."""
+    """Mix narration over the Reel soundtrack and replace the rendered video."""
     video = Path(video_path)
     voice = Path(voice_path)
     temp = video.with_name(video.stem + "_mixed_tmp.mp4")

@@ -20,7 +20,7 @@ on:
         type: choice
         options: [random, jjk_honored_one, jjk_malevolent_shrine, demon_slayer_flame, naruto_sasuke_rivals, one_piece_luffy_haki, aot_clash]
       voice_profile:
-        description: 'Optional narration voice style'
+        description: 'Free offline narration style'
         required: true
         default: 'off'
         type: choice
@@ -59,10 +59,10 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - name: Install FFmpeg and fonts
+      - name: Install FFmpeg and free offline TTS
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk fonts-noto-extra
+          sudo apt-get install -y -qq ffmpeg espeak-ng fonts-noto-cjk fonts-noto-extra
       - name: Install Python dependencies
         run: pip install --upgrade pip && pip install -r requirements.txt
       - name: Run content pipeline
@@ -73,11 +73,6 @@ jobs:
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
           GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          VOICE_ID_AYANOKOJI_INSPIRED: ${{ secrets.VOICE_ID_AYANOKOJI_INSPIRED }}
-          VOICE_ID_JOHAN_INSPIRED: ${{ secrets.VOICE_ID_JOHAN_INSPIRED }}
-          VOICE_ID_DEEP_NARRATOR: ${{ secrets.VOICE_ID_DEEP_NARRATOR }}
-          VOICE_ID_BRIGHT_NARRATOR: ${{ secrets.VOICE_ID_BRIGHT_NARRATOR }}
           CONTENT_MODE: ${{ inputs.mode || 'anime' }}
         run: |
           THEME='${{ inputs.theme || 'random' }}'
