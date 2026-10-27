@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from scripts.psychology_engine import TOPICS, choose_topic, generate_psychology_caption
 from scripts.performance_learner import ensure_template, summarize
+from scripts.uplika_uploader import _verified_permalink
 
 class PsychologyEngineTests(unittest.TestCase):
     def test_topics_are_unique_and_safely_framed(self):
@@ -26,6 +27,9 @@ class PsychologyEngineTests(unittest.TestCase):
             with path.open('a',newline='',encoding='utf-8') as f:
                 w=csv.writer(f); w.writerow([TOPICS[0]['id'],'https://www.instagram.com/reel/example/','2026-10-27',100,10,2,1,3])
             report=summarize(str(path)); self.assertEqual(report['posts'],1); self.assertEqual(report['views'],100)
+    def test_permalink_verification_rejects_cdn_urls(self):
+        self.assertEqual(_verified_permalink({'url':'https://www.instagram.com/reel/ABC123/'}),'https://www.instagram.com/reel/ABC123/')
+        self.assertIsNone(_verified_permalink({'url':'https://cdn.example.com/video.mp4'}))
     def test_choose_topic_without_metrics(self):
         with tempfile.TemporaryDirectory() as tmp: self.assertIn(choose_topic(str(Path(tmp)/'missing.csv')),TOPICS)
 

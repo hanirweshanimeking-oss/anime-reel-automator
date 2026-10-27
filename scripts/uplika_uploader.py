@@ -33,9 +33,9 @@ def _find_post_id(data):
 def _verified_permalink(data):
     """Accept only a public Instagram URL, never a CDN/upload URL."""
     if isinstance(data,dict):
-        for k in ('permalink','permalink_url','instagramUrl','instagram_url','postUrl'):
+        for k in ('permalink','permalink_url','instagramUrl','instagram_url','postUrl','url','link'):
             v=data.get(k)
-            if isinstance(v,str) and v.startswith('https://www.instagram.com/') and '/reel/' in v or isinstance(v,str) and v.startswith('https://instagram.com/') and '/reel/' in v: return v
+            if isinstance(v,str) and (v.startswith('https://www.instagram.com/') or v.startswith('https://instagram.com/')) and '/reel/' in v: return v
         for k in ('data','result','post','response','media'):
             v=data.get(k)
             if isinstance(v,dict):
