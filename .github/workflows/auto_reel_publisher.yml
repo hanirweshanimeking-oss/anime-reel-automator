@@ -19,6 +19,12 @@ on:
         default: 'random'
         type: choice
         options: [random, jjk_honored_one, jjk_malevolent_shrine, demon_slayer_flame, naruto_sasuke_rivals, one_piece_luffy_haki, aot_clash]
+      voice_profile:
+        description: 'Optional narration voice style'
+        required: true
+        default: 'off'
+        type: choice
+        options: [off, auto, ayanokoji-inspired, johan-inspired, deep-narrator, bright-narrator]
       dry_run:
         description: 'Render without publishing'
         required: true
@@ -67,13 +73,19 @@ jobs:
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
           GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          VOICE_ID_AYANOKOJI_INSPIRED: ${{ secrets.VOICE_ID_AYANOKOJI_INSPIRED }}
+          VOICE_ID_JOHAN_INSPIRED: ${{ secrets.VOICE_ID_JOHAN_INSPIRED }}
+          VOICE_ID_DEEP_NARRATOR: ${{ secrets.VOICE_ID_DEEP_NARRATOR }}
+          VOICE_ID_BRIGHT_NARRATOR: ${{ secrets.VOICE_ID_BRIGHT_NARRATOR }}
           CONTENT_MODE: ${{ inputs.mode || 'anime' }}
         run: |
           THEME='${{ inputs.theme || 'random' }}'
           MODE='${{ inputs.mode || 'anime' }}'
+          VOICE_PROFILE='${{ inputs.voice_profile || 'off' }}'
           FLAGS=''
           if [ '${{ inputs.dry_run }}' = 'true' ] || [ '${{ github.event_name }}' = 'schedule' ]; then FLAGS='--dry-run'; fi
-          python3 pipeline.py --mode "$MODE" --theme "$THEME" $FLAGS
+          python3 pipeline.py --mode "$MODE" --theme "$THEME" --voice-profile "$VOICE_PROFILE" $FLAGS
       - name: Upload rendered Reel artifact
         if: always()
         uses: actions/upload-artifact@v4
