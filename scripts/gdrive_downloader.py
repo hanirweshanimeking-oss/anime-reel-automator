@@ -13,13 +13,13 @@ import urllib.request
 import urllib.parse
 
 # Default OAuth Client & Refresh Token credentials
-DEFAULT_CLIENT_ID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
-DEFAULT_CLIENT_SECRET = "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"
-DEFAULT_REFRESH_TOKEN = "1//0gCpJ3yJjm791CgYIARAAGBASNwF-L9Ir6S4S643Zj0xPHcJYC4HYzuihPzzlYoyiZCC80-c5nUqSccKwWc-0MRsgee5FOhVj2t8"
+DEFAULT_CLIENT_ID = ""
+DEFAULT_CLIENT_SECRET = ""
+DEFAULT_REFRESH_TOKEN = ""
 
-CLIENT_ID = os.environ.get("GDRIVE_CLIENT_ID", DEFAULT_CLIENT_ID)
-CLIENT_SECRET = os.environ.get("GDRIVE_CLIENT_SECRET", DEFAULT_CLIENT_SECRET)
-REFRESH_TOKEN = os.environ.get("GDRIVE_REFRESH_TOKEN", DEFAULT_REFRESH_TOKEN)
+CLIENT_ID = os.environ.get("GDRIVE_CLIENT_ID", "").strip()
+CLIENT_SECRET = os.environ.get("GDRIVE_CLIENT_SECRET", "").strip()
+REFRESH_TOKEN = os.environ.get("GDRIVE_REFRESH_TOKEN", "").strip()
 
 # Google Drive folder IDs for the 3000+ Anime Reel Bundle
 BUNDLE_FOLDERS = {

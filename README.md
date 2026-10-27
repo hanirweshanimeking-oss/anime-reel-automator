@@ -1,85 +1,44 @@
-# 🎬 Autonomous Anime Reel Cloud Factory & Auto-Poster
+# Dragon Studios — Anime Reel Automation
 
-A **100% Free, Zero-Server-Cost Cloud Automation** that automatically generates high-retention anime montage reels with smooth transitions (`xfade`), phonk audio, `@dragon.studios.india` watermark, AI-crafted viral captions (Gemini), and publishes directly to Instagram on a daily schedule.
+Generates vertical anime reels with FFmpeg, original captions, a `@dragon.studios.india` watermark, and an optional psychology explainer mode. GitHub Actions supports scheduled render-only runs and manual workflow dispatch.
 
----
+## Modes
 
-## ⚡ How It Works (100% Free on GitHub Actions)
+- **Anime**: uses `config/themes.json` for known anime edits and Gemini-generated captions when `GEMINI_API_KEY` is configured.
+- **Psychology**: chooses an educational topic such as *Overthinker vs Manipulator*, adds the topic title/subtitle to the Reel, and generates a nuanced caption. It uses existing anime clips as visuals; it does not infer personality from a person's face or diagnose anyone.
+- **Performance feedback**: `analytics/instagram_metrics.csv` accepts real post insights (`topic_id,post_url,date,views,likes,comments,shares,saves`). Topic selection uses this file as a lightweight engagement signal. Metrics are descriptive, not proof of causation. The project does not claim to fetch Instagram insights automatically.
+- **Publishing verification**: a run is only reported as verified when the provider returns a public Instagram Reel permalink. CDN/media URLs and generic `publishing` statuses are not proof. If verification fails, the workflow exits non-zero; check the provider dashboard before retrying to avoid duplicate posts.
 
-```mermaid
-flowchart LR
-    Schedule["GitHub Actions Cron\n(12:00 PM & 6:00 PM IST)"] --> Runner["Ubuntu Runner\n(FFmpeg Pre-installed)"]
-    Runner --> Engine["Video Engine\n- Slices 6 Key Moments\n- 1080x1920 9:16 Crop\n- Smooth xfade Transitions\n- Watermark @dragon.studios.india\n- Phonk Soundtrack"]
-    Engine --> AI["Gemini 2.5 Flash\nViral Hook + Comments CTA + Hashtags"]
-    AI --> Uplika["Uplika API\nDirect Post to Instagram"]
-    Uplika --> IG["Live on @dragon.studios.india! 🚀"]
-```
-
-- **Cost:** **$0.00 / month** (Runs inside GitHub Actions' free 2,000 monthly runner minutes; each reel takes ~40 seconds).
-- **No external server required**: No VPS, no AWS bills, no credit card needed.
-- **Includes starter clip pack**: Bundled directly in `clips/` so GitHub Actions works out of the box immediately.
-
----
-
-## 🚀 Quick Setup: Push to Your Free GitHub Repo
-
-### Step 1: Initialize Git & Push to GitHub
-
-In your terminal:
+## Run locally
 
 ```bash
-cd "/home/001268796482_0/Videos/anime_cloud_automation"
-git init
-git add .
-git commit -m "Initial commit: Autonomous Anime Reel Cloud Factory"
-git branch -M main
-
-# Create a new repository on https://github.com/new (make it Private)
-# Then link and push:
-git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPO_NAME>.git
-git push -u origin main
+pip install -r requirements.txt
+python3 pipeline.py --mode anime --theme random --dry-run
+python3 pipeline.py --mode psychology --theme jjk_honored_one --dry-run
+python3 scripts/performance_learner.py
+python3 -m pytest -q
 ```
 
----
+## GitHub Actions secrets
 
-### Step 2: Configure GitHub Repository Secrets
+Add these under **Settings → Secrets and variables → Actions**. Never put their values in source code, README files, logs, or commits.
 
-Go to your repository on GitHub:
-**Settings** ➔ **Secrets and variables** ➔ **Actions** ➔ **New repository secret**:
+- `GEMINI_API_KEY` — optional; offline captions are used when absent.
+- `UPLIKA_API_KEY` — required only for live publishing.
+- `UPLIKA_ACCOUNT_ID` — required only for live publishing.
+- `GDRIVE_CLIENT_ID`, `GDRIVE_CLIENT_SECRET`, `GDRIVE_REFRESH_TOKEN` — needed if clips must be fetched from Google Drive.
 
-| Secret Name | Value | Purpose |
-| :--- | :--- | :--- |
-| `UPLIKA_API_KEY` | `sk_6e85888ae9c16610bd87c90e34a7290818636b55cde49d2c37f9be2e7717b5d5` | Uplika API authentication |
-| `UPLIKA_ACCOUNT_ID` | `conn_8fe3721242166de7` | Target Instagram connection |
-| `GEMINI_API_KEY` | *(Your free key from [aistudio.google.com](https://aistudio.google.com/))* | Generates viral captions |
+The manual workflow defaults to a dry run. Scheduled executions also render only; to publish, manually run the workflow and explicitly turn off `dry_run` after checking the rendered artifact and confirming your provider setup.
 
-*(Note: Even if `GEMINI_API_KEY` is not provided, the pipeline automatically falls back to built-in high-converting viral templates!)*
+## Credential safety
 
----
+Credentials were previously present in repository text/source. They have been removed from the current source in this change, but this does **not** invalidate them or erase Git history. Rotate/revoke exposed Gemini, Uplika, and Google Drive credentials; review the repository's commit history and replace any affected secrets. Keep the repository private if its bundled media requires it.
 
-### Step 3: Trigger or Watch It Run Automatically
+## Metrics format
 
-1. **Automatic Daily Schedule:**
-   - **12:00 PM IST (06:30 UTC)** — Peak lunchtime engagement.
-   - **6:00 PM IST (12:30 UTC)** — Peak evening entertainment.
-2. **Manual 1-Click Trigger:**
-   - Go to the **Actions** tab on your GitHub repository.
-   - Click **"Autonomous Anime Reel Publisher"** on the left.
-   - Click **"Run workflow"** ➔ Select Theme (or Random) ➔ Click **Run workflow**!
-   - In ~45 seconds, the reel will render, get uploaded to Instagram, and the live link will be printed in the log!
+Add one row per Reel after collecting genuine Instagram insights:
 
----
-
-## 💻 Running Locally (Optional)
-
-You can also run or test the pipeline locally on your machine at any time:
-
-```bash
-cd "/home/001268796482_0/Videos/anime_cloud_automation"
-
-# Test render only (dry run - does not publish to Instagram):
-python3 pipeline.py --dry-run
-
-# Full render and live upload to Instagram:
-python3 pipeline.py
+```csv
+topic_id,post_url,date,views,likes,comments,shares,saves
+psychopath-vs-mastermind,https://www.instagram.com/reel/EXAMPLE/,2026-10-27,1200,95,14,8,11
 ```

@@ -1,176 +1,80 @@
 #!/usr/bin/env python3
-"""
-Autonomous Cloud Reel Pipeline Orchestrator.
-Coordinates Video Editing (FFmpeg) -> AI Copywriting (Gemini) -> Social Media Publishing (Uplika).
-Can run locally or in GitHub Actions / Cloud Cron.
-"""
-
-import os
-import sys
-import json
-import random
-import argparse
-from datetime import datetime
-
-# Local imports
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(SCRIPT_DIR, "scripts"))
-
+"""Anime Reel pipeline with optional psychology topics and verified publish status."""
+import os, sys, json, random, argparse
+from datetime import datetime, timezone
+SCRIPT_DIR=os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0,os.path.join(SCRIPT_DIR,'scripts'))
 from video_engine import render_smooth_reel
 from gemini_copywriter import generate_caption
+from psychology_engine import choose_topic, generate_psychology_caption
 from uplika_uploader import publish_reel, poll_publish_status
 from gdrive_downloader import download_file as gdrive_download
-
-DEFAULT_VIDEO_DIR = "/home/001268796482_0/Videos/3000+ Anime reel bundle"
-OUTPUT_DIR = os.path.join(SCRIPT_DIR, "outputs")
-HISTORY_FILE = os.path.join(SCRIPT_DIR, "publish_history.json")
-
-
+DEFAULT_VIDEO_DIR='/home/001268796482_0/Videos/3000+ Anime reel bundle'
+OUTPUT_DIR=os.path.join(SCRIPT_DIR,'outputs')
+HISTORY_FILE=os.path.join(SCRIPT_DIR,'publish_history.json')
 def load_themes():
-    themes_path = os.path.join(SCRIPT_DIR, "config", "themes.json")
-    if not os.path.exists(themes_path):
-        raise FileNotFoundError(f"Themes config missing: {themes_path}")
-    with open(themes_path, "r", encoding="utf-8") as f:
-        return json.load(f).get("themes", [])
-
-
-def resolve_video_path(candidate_base_dirs, rel_dir, filename):
-    cleaned_dir = rel_dir.replace("Digiproducthub.in ", "").replace("(", "").replace(")", "").strip()
-    subpaths = [
-        rel_dir,
-        cleaned_dir,
-        os.path.join("clips", rel_dir),
-        os.path.join("clips", cleaned_dir),
-        ""
-    ]
-    for base in candidate_base_dirs:
-        for sub in subpaths:
-            full = os.path.normpath(os.path.join(base, sub, filename) if sub else os.path.join(base, filename))
-            if os.path.exists(full):
-                return full
+    path=os.path.join(SCRIPT_DIR,'config','themes.json')
+    with open(path,encoding='utf-8') as f: return json.load(f).get('themes',[])
+def resolve_video_path(bases, rel_dir, filename):
+    cleaned=rel_dir.replace('Digiproducthub.in ','').replace('(','').replace(')','').strip()
+    for base in bases:
+        for sub in (rel_dir,cleaned,os.path.join('clips',rel_dir),os.path.join('clips',cleaned),''):
+            full=os.path.normpath(os.path.join(base,sub,filename) if sub else os.path.join(base,filename))
+            if os.path.isfile(full): return full
     return None
-
-
+def save_history(entry):
+    try:
+        data=json.load(open(HISTORY_FILE,encoding='utf-8')) if os.path.exists(HISTORY_FILE) else []
+        if not isinstance(data,list): data=[]
+    except (OSError,ValueError): data=[]
+    data.append(entry)
+    with open(HISTORY_FILE,'w',encoding='utf-8') as f: json.dump(data,f,indent=2,ensure_ascii=False)
 def main():
-    parser = argparse.ArgumentParser(description="Autonomous Anime Reel Cloud Pipeline")
-    parser.add_argument("--theme", type=str, default="random", help="Theme ID to render or 'random'")
-    parser.add_argument("--dry-run", action="store_true", help="Render video & caption without uploading to Instagram")
-    parser.add_argument("--video-dir", type=str, default="", help="Custom root directory for video bundle")
-    parser.add_argument("--output", type=str, default="", help="Custom output MP4 path")
-    args = parser.parse_args()
-
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    themes = load_themes()
-    if not themes:
-        print("[!] No themes defined in themes.json", file=sys.stderr)
-        sys.exit(1)
-
-    # 1. Select Theme
-    if args.theme == "random":
-        chosen_theme = random.choice(themes)
+    p=argparse.ArgumentParser(description='Dragon Studios Reel automation')
+    p.add_argument('--theme',default='random',help='Anime theme ID or random')
+    p.add_argument('--mode',choices=('anime','psychology'),default=os.environ.get('CONTENT_MODE','anime'),help='Content engine')
+    p.add_argument('--dry-run',action='store_true',help='Render without publishing')
+    p.add_argument('--video-dir',default=''); p.add_argument('--output',default='')
+    args=p.parse_args(); os.makedirs(OUTPUT_DIR,exist_ok=True)
+    themes=load_themes()
+    if not themes: raise SystemExit('No themes defined in config/themes.json')
+    if args.theme=='random': base_theme=random.choice(themes)
     else:
-        matched = [t for t in themes if t.get("id") == args.theme]
-        chosen_theme = matched[0] if matched else random.choice(themes)
-
-    print("=" * 60)
-    print(f"🎬 SELECTED THEME: {chosen_theme['name']} ({chosen_theme['id']})")
-    print(f"⚡ CHARACTERS: {', '.join(chosen_theme.get('characters', []))}")
-    print("=" * 60)
-
-    # 2. Locate Source Videos
-    candidate_dirs = [
-        args.video_dir,
-        os.environ.get("VIDEO_BUNDLE_ROOT", ""),
-        DEFAULT_VIDEO_DIR,
-        os.path.join(SCRIPT_DIR, "clips"),
-        "/tmp/clips"
-    ]
-    candidate_dirs = [d for d in candidate_dirs if d and os.path.exists(d)]
-
-    segments_to_render = []
-    for seg in chosen_theme.get("relative_segments", []):
-        filename = seg.get("file", "")
-        vpath = resolve_video_path(candidate_dirs, seg.get("dir", ""), filename)
-        if not vpath:
-            print(f"[*] Clip '{filename}' not found locally; streaming from Google Drive...")
-            vpath = gdrive_download(filename, destination_dir="/tmp/clips", rel_dir=seg.get("dir", ""))
-
-        if not vpath or not os.path.exists(vpath):
-            print(f"[!] Source video not found for {filename}; searched in {candidate_dirs} and Google Drive", file=sys.stderr)
-            sys.exit(1)
-        segments_to_render.append((vpath, seg.get("start", 0.0), seg.get("duration", 3.0)))
-
-    # 3. Render High-Retention Reel
-    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_file = args.output or os.path.join(OUTPUT_DIR, f"reel_{chosen_theme['id']}_{timestamp_str}.mp4")
-
-    print(f"[*] Rendering vertical reel to: {out_file}")
-    render_smooth_reel(
-        segments=segments_to_render,
-        output_path=out_file,
-        hook_title=chosen_theme.get("hook_title", "HONORED ONE vs KING OF CURSES"),
-        hook_subtitle=chosen_theme.get("hook_subtitle", "WHO HAS MORE AURA?"),
-        watermark="@dragon.studios.india"
-    )
-
-    # 4. Generate AI Caption & Tags
-    print("\n[*] Generating high-engagement viral caption...")
-    caption = generate_caption(
-        theme_name=chosen_theme.get("name"),
-        characters=chosen_theme.get("characters")
-    )
-    print("\n" + "-" * 50)
-    print(caption)
-    print("-" * 50 + "\n")
-
-    # 5. Instagram Publishing via Uplika
-    publish_result = None
-    permalink = None
-    if args.dry_run:
-        print("[!] DRY-RUN ENABLED: Skipping Instagram upload.")
+        matches=[t for t in themes if t.get('id')==args.theme]
+        if not matches: raise SystemExit(f'Unknown theme ID: {args.theme}')
+        base_theme=matches[0]
+    topic=choose_topic(os.path.join(SCRIPT_DIR,'analytics','instagram_metrics.csv')) if args.mode=='psychology' else None
+    title=topic['title'] if topic else base_theme.get('hook_title','ANIME CLASH')
+    subtitle=topic['subtitle'] if topic else base_theme.get('hook_subtitle','CHOOSE YOUR FIGHTER')
+    theme_name=topic['title'] if topic else base_theme.get('name',base_theme['id'])
+    print(f"MODE: {args.mode} | SOURCE THEME: {base_theme['name']}" + (f" | TOPIC: {topic['id']}" if topic else ''))
+    bases=[args.video_dir,os.environ.get('VIDEO_BUNDLE_ROOT',''),DEFAULT_VIDEO_DIR,os.path.join(SCRIPT_DIR,'clips'),'/tmp/clips']
+    bases=[x for x in bases if x and os.path.exists(x)]
+    segments=[]
+    for seg in base_theme.get('relative_segments',[]):
+        filename=seg.get('file',''); path=resolve_video_path(bases,seg.get('dir',''),filename)
+        if not path: path=gdrive_download(filename,destination_dir='/tmp/clips',rel_dir=seg.get('dir',''))
+        if not path or not os.path.isfile(path): raise SystemExit(f'Source clip unavailable: {filename}')
+        segments.append((path,seg.get('start',0.0),seg.get('duration',3.0)))
+    if not segments: raise SystemExit('Selected theme has no usable segments')
+    stamp=datetime.now().strftime('%Y%m%d_%H%M%S')
+    out=args.output or os.path.join(OUTPUT_DIR,f"reel_{args.mode}_{base_theme['id']}_{stamp}.mp4")
+    render_smooth_reel(segments=segments,output_path=out,hook_title=title,hook_subtitle=subtitle,watermark='@dragon.studios.india')
+    caption=generate_psychology_caption(topic,base_theme.get('characters')) if topic else generate_caption(base_theme.get('name'),base_theme.get('characters'))
+    print('\n'+caption+'\n')
+    publish_result=None; permalink=None; status='dry_run' if args.dry_run else 'not_attempted'
+    if args.dry_run: print('DRY RUN: publishing skipped.')
     else:
-        print("[*] Uploading & Publishing Reel to Instagram via Uplika API...")
-        publish_result = publish_reel(out_file, caption)
+        publish_result=publish_reel(out,caption)
         if publish_result:
-            post_id = publish_result.get("id")
-            permalink = publish_result.get("permalink") or publish_result.get("url") or publish_result.get("link")
-            if permalink:
-                print("\n" + "=" * 60)
-                print(f"🎉 REEL IS LIVE ON INSTAGRAM: {permalink}")
-                print("=" * 60 + "\n")
-            else:
-                permalink = poll_publish_status(post_id=post_id, timeout_seconds=120, interval=5)
-                if permalink:
-                    print("\n" + "=" * 60)
-                    print(f"🎉 REEL IS LIVE ON INSTAGRAM: {permalink}")
-                    print("=" * 60 + "\n")
-                else:
-                    print("[!] Instagram post was created, but no public permalink was returned. Check the Uplika post status manually.")
-
-    # 6. Record to History
-    history_entry = {
-        "timestamp": datetime.now().isoformat(),
-        "theme_id": chosen_theme["id"],
-        "video_file": out_file,
-        "caption": caption,
-        "dry_run": args.dry_run,
-        "permalink": permalink,
-        "publish_response": publish_result
-    }
-
-    history = []
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-                history = json.load(f)
-        except Exception:
-            history = []
-    history.append(history_entry)
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2)
-
-    print(f"[✓] Automation cycle completed successfully! History logged to {HISTORY_FILE}")
-
-
-if __name__ == "__main__":
-    main()
+            post_id=publish_result.get('_post_id') or publish_result.get('id') or publish_result.get('postId')
+            permalink=poll_publish_status(post_id=post_id,timeout_seconds=180,interval=5)
+            status='published_verified' if permalink else 'unverified_or_pending'
+        else: status='publish_failed'
+        if permalink: print(f'INSTAGRAM_PERMALINK_VERIFIED: {permalink}')
+        else: print('Publication is NOT verified: no public Instagram permalink was confirmed. Check provider dashboard before retrying to avoid duplicate posts.')
+    entry={'timestamp':datetime.now(timezone.utc).isoformat(),'mode':args.mode,'theme_id':base_theme['id'],'topic_id':topic['id'] if topic else None,'video_file':out,'caption':caption,'dry_run':args.dry_run,'publish_status':status,'permalink':permalink}
+    save_history(entry)
+    print(f'History recorded ({status}).')
+    if not args.dry_run and status!='published_verified': raise SystemExit(2)
+if __name__=='__main__': main()
