@@ -1,5 +1,7 @@
 name: Autonomous Anime Reel Publisher
 on:
+  pull_request:
+    branches: [main]
   schedule:
     - cron: '30 6 * * *'
     - cron: '30 12 * * *'
@@ -39,6 +41,7 @@ jobs:
       - name: Run unit tests
         run: python3 -m unittest discover -s tests -v
   render-and-publish:
+    if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 25
