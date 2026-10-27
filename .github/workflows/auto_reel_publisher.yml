@@ -3,16 +3,34 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '30 6 * * *'
-    - cron: '30 12 * * *'
+    - cron: '15 0 * * *'
+    - cron: '27 1 * * *'
+    - cron: '39 2 * * *'
+    - cron: '51 3 * * *'
+    - cron: '3 5 * * *'
+    - cron: '15 6 * * *'
+    - cron: '27 7 * * *'
+    - cron: '39 8 * * *'
+    - cron: '51 9 * * *'
+    - cron: '3 11 * * *'
+    - cron: '15 12 * * *'
+    - cron: '27 13 * * *'
+    - cron: '39 14 * * *'
+    - cron: '51 15 * * *'
+    - cron: '3 17 * * *'
+    - cron: '15 18 * * *'
+    - cron: '27 19 * * *'
+    - cron: '39 20 * * *'
+    - cron: '51 21 * * *'
+    - cron: '3 23 * * *'
   workflow_dispatch:
     inputs:
       mode:
         description: 'Content engine'
         required: true
-        default: 'anime'
+        default: 'psychology'
         type: choice
-        options: [anime, psychology]
+        options: [psychology, anime]
       theme:
         description: 'Source anime theme (also supplies visuals in psychology mode)'
         required: true
@@ -73,13 +91,19 @@ jobs:
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
           GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
-          CONTENT_MODE: ${{ inputs.mode || 'anime' }}
+          CONTENT_MODE: ${{ inputs.mode || 'psychology' }}
         run: |
           THEME='${{ inputs.theme || 'random' }}'
-          MODE='${{ inputs.mode || 'anime' }}'
-          VOICE_PROFILE='${{ inputs.voice_profile || 'off' }}'
-          FLAGS=''
-          if [ '${{ inputs.dry_run }}' = 'true' ] || [ '${{ github.event_name }}' = 'schedule' ]; then FLAGS='--dry-run'; fi
+          if [ '${{ github.event_name }}' = 'schedule' ]; then
+            MODE='psychology'
+            VOICE_PROFILE='off'
+            FLAGS=''
+          else
+            MODE='${{ inputs.mode || 'psychology' }}'
+            VOICE_PROFILE='${{ inputs.voice_profile || 'off' }}'
+            FLAGS=''
+            if [ '${{ inputs.dry_run }}' = 'true' ]; then FLAGS='--dry-run'; fi
+          fi
           python3 pipeline.py --mode "$MODE" --theme "$THEME" --voice-profile "$VOICE_PROFILE" $FLAGS
       - name: Upload rendered Reel artifact
         if: always()
