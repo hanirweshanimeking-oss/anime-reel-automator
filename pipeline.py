@@ -21,6 +21,7 @@ from voiceover import generate_voiceover, mix_voiceover, build_narration, choose
 DEFAULT_VIDEO_DIR = "/home/001268796482_0/Videos/3000+ Anime reel bundle"
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "outputs")
 HISTORY_FILE = os.path.join(SCRIPT_DIR, "publish_history.json")
+SOURCE_REGISTRY_FILE = os.path.join(SCRIPT_DIR, "source_usage.json")
 
 
 def load_themes():
@@ -52,6 +53,34 @@ def save_history(entry):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
+def load_used_sources():
+    try:
+        with open(SOURCE_REGISTRY_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return set(data.get("used_sources", [])) if isinstance(data, dict) else set()
+    except FileNotFoundError:
+        return set()
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"Cannot safely read source usage registry: {exc}")
+
+
+def reserve_sources(paths):
+    """Persist source identities before rendering so failed runs cannot silently reuse footage."""
+    used = load_used_sources()
+    keys = [os.path.normcase(os.path.basename(path)).casefold() for path in paths]
+    repeated = sorted(set(keys) & used)
+    duplicates_in_selection = sorted({key for key in keys if keys.count(key) > 1})
+    if repeated or duplicates_in_selection:
+        raise SystemExit("Source reuse blocked. Previously used: " + ", ".join(repeated) +
+                         "; repeated in selected theme: " + ", ".join(duplicates_in_selection))
+    used.update(keys)
+    payload = {"schema_version": 1, "used_sources": sorted(used),
+               "updated_at": datetime.now(timezone.utc).isoformat()}
+    with open(SOURCE_REGISTRY_FILE, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
 def main():
     p = argparse.ArgumentParser(description="Dragon Studios Reel automation")
     p.add_argument("--theme", default="random", help="Anime theme ID or random")
@@ -59,9 +88,12 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="Render without publishing")
     p.add_argument("--video-dir", default="")
     p.add_argument("--output", default="")
+    p.add_argument("--style", choices=("cinematic_gold", "red_black", "blue_monochrome", "fast_montage"), default="cinematic_gold")
     p.add_argument("--voice-profile", choices=("off", "auto", "ayanokoji-inspired", "johan-inspired", "deep-narrator", "bright-narrator"), default="off",
                    help="Optional voiceover profile; auto randomly chooses among configured profiles")
     args = p.parse_args()
+    # User requirement: always music-only; ignore legacy CLI/environment requests for narration.
+    args.voice_profile = "off"
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     themes = load_themes()
     if not themes:
@@ -93,11 +125,23 @@ def main():
         segments.append((path, seg.get("start", 0.0), seg.get("duration", 3.0)))
     if not segments:
         raise SystemExit("Selected theme has no usable segments")
+    # Themes may list the same source file more than once; use each source at most once per Reel.
+    unique_segments = []
+    selected_ids = set()
+    for segment in segments:
+        source_id = os.path.normcase(os.path.basename(segment[0])).casefold()
+        if source_id not in selected_ids:
+            unique_segments.append(segment)
+            selected_ids.add(source_id)
+    segments = unique_segments
+    if len(segments) < 2:
+        raise SystemExit("Not enough distinct source videos remain for a Reel")
+    reserve_sources([segment[0] for segment in segments])
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out = args.output or os.path.join(OUTPUT_DIR, f"reel_{args.mode}_{base_theme['id']}_{stamp}.mp4")
     render_smooth_reel(segments=segments, output_path=out, hook_title=title, hook_subtitle=subtitle,
-                       watermark="@dragon.studios.india")
+                       watermark="@dragon.studios.india", style_profile=args.style)
 
     caption = (generate_psychology_caption(topic, base_theme.get("characters")) if topic
                else generate_caption(base_theme.get("name"), base_theme.get("characters")))
