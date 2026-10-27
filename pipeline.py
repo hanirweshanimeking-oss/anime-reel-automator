@@ -97,7 +97,7 @@ def main():
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out = args.output or os.path.join(OUTPUT_DIR, f"reel_{args.mode}_{base_theme['id']}_{stamp}.mp4")
     render_smooth_reel(segments=segments, output_path=out, hook_title=title, hook_subtitle=subtitle,
-                       watermark="@dragon.studios.india")
+                       watermark="@dragon.studios.india", psychology_topic=topic)
 
     caption = (generate_psychology_caption(topic, base_theme.get("characters")) if topic
                else generate_caption(base_theme.get("name"), base_theme.get("characters")))
@@ -129,7 +129,7 @@ def main():
         if permalink:
             print(f"INSTAGRAM_PERMALINK_VERIFIED: {permalink}")
         else:
-            print("Publication is NOT verified: no public Instagram permalink was confirmed. Check provider dashboard before retrying to avoid duplicate posts.")
+            print("Publication is NOT verified: no public Instagram Reel permalink was confirmed. Check provider dashboard before retrying to avoid duplicate posts.")
 
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(), "mode": args.mode,
